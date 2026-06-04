@@ -8,7 +8,7 @@ export function Header() {
     <header className="site-header">
       <div className="site-header__inner">
         <Link className="brand" href="/" aria-label="Salon Marketing Agency home">
-          <Image src="/logo.svg" alt="Salon Marketing Agency" width={260} height={60} priority />
+          <Image src="/logo.svg" alt="Salon Marketing Agency" width={190} height={75} priority />
         </Link>
         <nav className="main-nav" aria-label="Main navigation">
           {navItems.map((item) => (

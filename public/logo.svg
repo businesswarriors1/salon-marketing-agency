@@ -1,8 +1,8 @@
-<svg width="430" height="92" viewBox="0 0 430 92" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="430" height="170" viewBox="0 0 430 170" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Salon Marketing Agency logo</title>
-  <desc id="desc">Simple transparent wordmark for Salon Marketing Agency.</desc>
-  <circle cx="46" cy="46" r="29" stroke="#4B164C" stroke-width="6"/>
-  <path d="M58 32c-5-7-22-7-24 2-2 10 23 8 21 19-2 10-20 10-26 1" stroke="#EF6F91" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="88" y="42" fill="#19141D" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="800">Salon Marketing</text>
-  <text x="90" y="66" fill="#0F8A8A" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="800" letter-spacing="4">AGENCY</text>
+  <desc id="desc">Stacked transparent wordmark for Salon Marketing Agency.</desc>
+  <text x="4" y="51" fill="#4B164C" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="900">Salon</text>
+  <text x="4" y="101" fill="#19141D" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="900">Marketing</text>
+  <path d="M7 123H160" stroke="#EF6F91" stroke-width="6" stroke-linecap="round"/>
+  <text x="4" y="153" fill="#0F8A8A" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" letter-spacing="5">AGENCY</text>
 </svg>

@@ -84,7 +84,7 @@ main {
 .brand {
   display: inline-flex;
   align-items: center;
-  width: 260px;
+  width: 190px;
 }
 
 .brand img {
@@ -838,7 +838,7 @@ details p {
   }
 
   .brand {
-    width: 220px;
+    width: 160px;
   }
 
   .site-header__cta {

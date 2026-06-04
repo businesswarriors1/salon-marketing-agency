@@ -8,7 +8,7 @@ export function Footer() {
     <footer className="site-footer">
       <div className="footer-grid">
         <div className="footer-brand">
-          <Image src="/logo.svg" alt="Salon Marketing Agency" width={245} height={57} />
+          <Image src="/logo.svg" alt="Salon Marketing Agency" width={220} height={87} />
           <p>
             Marketing systems for salons, beauty clinics, spas, and wellness brands that need more
             qualified enquiries and stronger repeat bookings.
@@ -23,7 +23,7 @@ export function Footer() {
         </nav>
       </div>
       <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} Salon Marketing Agency. All rights reserved.</span>
+        <span>&copy; {new Date().getFullYear()} Salon Marketing Agency. All rights reserved.</span>
         <span>
           Website built by Business Warriors{" "}
           <a href="https://businesswarriors.global/" target="_blank" rel="noreferrer">
