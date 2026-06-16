@@ -15,6 +15,18 @@ type EnquiryPayload = {
   company?: unknown;
 };
 
+type Fields = {
+  name: string;
+  email: string;
+  phone: string;
+  salonName: string;
+  website: string;
+  service: string;
+  budget: string;
+  message: string;
+  company: string;
+};
+
 const maxLength = {
   name: 120,
   email: 160,
@@ -44,6 +56,71 @@ function isLikelyEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+async function sendToGhl(fields: Fields): Promise<void> {
+  const ghlApiKey = process.env.GHL_API_KEY;
+  if (!ghlApiKey) return;
+
+  try {
+    const nameParts = fields.name.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ") || undefined;
+
+    const tags = ["salon-website-enquiry"];
+    if (fields.service) tags.push(fields.service);
+
+    const contactRes = await fetch("https://rest.gohighlevel.com/v1/contacts/", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ghlApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        email: fields.email,
+        phone: fields.phone,
+        companyName: fields.salonName || undefined,
+        website: fields.website || undefined,
+        source: "Salon Marketing Agency Website",
+        tags
+      })
+    });
+
+    if (!contactRes.ok) {
+      const errText = await contactRes.text().catch(() => "");
+      console.error("GHL contact creation failed:", contactRes.status, errText);
+      return;
+    }
+
+    const contactData = (await contactRes.json()) as { contact?: { id?: string } };
+    const contactId = contactData.contact?.id;
+
+    if (contactId) {
+      const noteBody = [
+        `Service interest: ${fields.service || "Not selected"}`,
+        `Monthly budget: ${fields.budget || "Not selected"}`,
+        "",
+        fields.message
+      ].join("\n");
+
+      const noteRes = await fetch(`https://rest.gohighlevel.com/v1/contacts/${contactId}/notes/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ghlApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ body: noteBody })
+      });
+
+      if (!noteRes.ok) {
+        console.error("GHL note creation failed:", noteRes.status);
+      }
+    }
+  } catch (err) {
+    console.error("GHL send error:", err);
+  }
+}
+
 export async function POST(request: Request) {
   let payload: EnquiryPayload;
 
@@ -53,7 +130,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid enquiry details." }, { status: 400 });
   }
 
-  const fields = {
+  const fields: Fields = {
     name: readString(payload.name, maxLength.name),
     email: readString(payload.email, maxLength.email),
     phone: readString(payload.phone, maxLength.phone),
@@ -77,13 +154,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
+  const resendApiKey = process.env.RESEND_API_KEY;
   const toEmail = process.env.ENQUIRY_TO_EMAIL;
   const fromEmail = process.env.ENQUIRY_FROM_EMAIL;
 
-  if (!apiKey || !toEmail || !fromEmail) {
+  if (!resendApiKey || !toEmail || !fromEmail) {
     if (process.env.NODE_ENV !== "production") {
-      console.info("Enquiry form development mode: email send skipped because env vars are missing.");
+      console.info("Enquiry form development mode: send skipped because env vars are missing.");
       return NextResponse.json({ ok: true, mode: "development" });
     }
 
@@ -94,7 +171,7 @@ export async function POST(request: Request) {
   }
 
   const subject = `New salon marketing enquiry from ${fields.name}`;
-  const rows = [
+  const rows: [string, string][] = [
     ["Name", fields.name],
     ["Email", fields.email],
     ["Phone", fields.phone],
@@ -117,30 +194,33 @@ export async function POST(request: Request) {
 
   const text = rows.map(([label, value]) => `${label}: ${value}`).join("\n");
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: [toEmail],
-      reply_to: fields.email,
-      subject,
-      text,
-      html: `
-        <div style="font-family: Arial, Helvetica, sans-serif; color: #19141d; line-height: 1.5;">
-          <h1 style="color: #4b164c; font-size: 24px;">New Salon Marketing Agency enquiry</h1>
-          <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border: 1px solid #eadfe6; width: 100%; max-width: 720px;">
-            ${htmlRows}
-          </table>
-        </div>`
-    })
-  });
+  const [resendResponse] = await Promise.all([
+    fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [toEmail],
+        reply_to: fields.email,
+        subject,
+        text,
+        html: `
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #19141d; line-height: 1.5;">
+            <h1 style="color: #4b164c; font-size: 24px;">New Salon Marketing Agency enquiry</h1>
+            <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; border: 1px solid #eadfe6; width: 100%; max-width: 720px;">
+              ${htmlRows}
+            </table>
+          </div>`
+      })
+    }),
+    sendToGhl(fields)
+  ]);
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown Resend error");
+  if (!resendResponse.ok) {
+    const errorText = await resendResponse.text().catch(() => "Unknown Resend error");
     console.error("Resend enquiry send failed:", errorText);
     return NextResponse.json(
       { error: "Your enquiry could not be sent. Please try again." },
