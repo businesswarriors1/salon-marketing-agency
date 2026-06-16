@@ -209,7 +209,7 @@ export async function POST(request: Request) {
     console.error("Enquiry form not configured. Missing env vars:", missing.join(", "));
 
     return NextResponse.json(
-      { error: "The enquiry form is not configured yet. Please try again soon.", missing },
+      { error: "The enquiry form is not configured yet. Please try again soon." },
       { status: 500 }
     );
   }
@@ -238,7 +238,7 @@ export async function POST(request: Request) {
 
   const text = rows.map(([label, value]) => `${label}: ${value}`).join("\n");
 
-  const [resendResponse, ghlResult] = await Promise.all([
+  const [resendResponse] = await Promise.all([
     fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -272,5 +272,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, ghl: ghlResult });
+  return NextResponse.json({ ok: true });
 }
