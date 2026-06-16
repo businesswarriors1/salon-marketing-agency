@@ -164,8 +164,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, mode: "development" });
     }
 
+    const missing = [
+      !resendApiKey && "RESEND_API_KEY",
+      !toEmail && "ENQUIRY_TO_EMAIL",
+      !fromEmail && "ENQUIRY_FROM_EMAIL"
+    ].filter(Boolean);
+    console.error("Enquiry form not configured. Missing env vars:", missing.join(", "));
+
     return NextResponse.json(
-      { error: "The enquiry form is not configured yet. Please try again soon." },
+      { error: "The enquiry form is not configured yet. Please try again soon.", missing },
       { status: 500 }
     );
   }
