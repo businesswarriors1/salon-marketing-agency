@@ -56,9 +56,18 @@ function isLikelyEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-async function sendToGhl(fields: Fields): Promise<void> {
+type GhlResult = {
+  ok: boolean;
+  skipped?: boolean;
+  status?: number;
+  error?: string;
+  contactId?: string;
+  noteStatus?: number;
+};
+
+async function sendToGhl(fields: Fields): Promise<GhlResult> {
   const ghlApiKey = process.env.GHL_API_KEY;
-  if (!ghlApiKey) return;
+  if (!ghlApiKey) return { ok: false, skipped: true, error: "GHL_API_KEY not set" };
 
   try {
     const nameParts = fields.name.trim().split(/\s+/);
@@ -89,12 +98,13 @@ async function sendToGhl(fields: Fields): Promise<void> {
     if (!contactRes.ok) {
       const errText = await contactRes.text().catch(() => "");
       console.error("GHL contact creation failed:", contactRes.status, errText);
-      return;
+      return { ok: false, status: contactRes.status, error: errText.slice(0, 300) };
     }
 
     const contactData = (await contactRes.json()) as { contact?: { id?: string } };
     const contactId = contactData.contact?.id;
 
+    let noteStatus: number | undefined;
     if (contactId) {
       const noteBody = [
         `Service interest: ${fields.service || "Not selected"}`,
@@ -112,12 +122,16 @@ async function sendToGhl(fields: Fields): Promise<void> {
         body: JSON.stringify({ body: noteBody })
       });
 
+      noteStatus = noteRes.status;
       if (!noteRes.ok) {
         console.error("GHL note creation failed:", noteRes.status);
       }
     }
+
+    return { ok: true, status: contactRes.status, contactId, noteStatus };
   } catch (err) {
     console.error("GHL send error:", err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -201,7 +215,7 @@ export async function POST(request: Request) {
 
   const text = rows.map(([label, value]) => `${label}: ${value}`).join("\n");
 
-  const [resendResponse] = await Promise.all([
+  const [resendResponse, ghlResult] = await Promise.all([
     fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -235,5 +249,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ghl: ghlResult });
 }
