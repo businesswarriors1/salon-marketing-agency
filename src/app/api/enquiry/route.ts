@@ -65,9 +65,22 @@ type GhlResult = {
   noteStatus?: number;
 };
 
+// GoHighLevel v2 API (LeadConnector). Uses a Private Integration token (pit-...).
+const GHL_API_BASE = "https://services.leadconnectorhq.com";
+const GHL_API_VERSION = "2021-07-28";
+
 async function sendToGhl(fields: Fields): Promise<GhlResult> {
   const ghlApiKey = process.env.GHL_API_KEY;
+  const locationId = process.env.GHL_LOCATION_ID;
   if (!ghlApiKey) return { ok: false, skipped: true, error: "GHL_API_KEY not set" };
+  if (!locationId) return { ok: false, skipped: true, error: "GHL_LOCATION_ID not set" };
+
+  const headers = {
+    Authorization: `Bearer ${ghlApiKey}`,
+    Version: GHL_API_VERSION,
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  };
 
   try {
     const nameParts = fields.name.trim().split(/\s+/);
@@ -77,15 +90,14 @@ async function sendToGhl(fields: Fields): Promise<GhlResult> {
     const tags = ["salon-website-enquiry"];
     if (fields.service) tags.push(fields.service);
 
-    const contactRes = await fetch("https://rest.gohighlevel.com/v1/contacts/", {
+    const contactRes = await fetch(`${GHL_API_BASE}/contacts/`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${ghlApiKey}`,
-        "Content-Type": "application/json"
-      },
+      headers,
       body: JSON.stringify({
+        locationId,
         firstName,
         lastName,
+        name: fields.name,
         email: fields.email,
         phone: fields.phone,
         companyName: fields.salonName || undefined,
@@ -95,14 +107,28 @@ async function sendToGhl(fields: Fields): Promise<GhlResult> {
       })
     });
 
-    if (!contactRes.ok) {
-      const errText = await contactRes.text().catch(() => "");
-      console.error("GHL contact creation failed:", contactRes.status, errText);
-      return { ok: false, status: contactRes.status, error: errText.slice(0, 300) };
-    }
+    let contactId: string | undefined;
 
-    const contactData = (await contactRes.json()) as { contact?: { id?: string } };
-    const contactId = contactData.contact?.id;
+    if (contactRes.ok) {
+      const data = (await contactRes.json()) as { contact?: { id?: string } };
+      contactId = data.contact?.id;
+    } else {
+      // When duplicates are disallowed, v2 returns 400 with meta.contactId for the existing contact.
+      const errBody = await contactRes.text().catch(() => "");
+      let duplicateId: string | undefined;
+      try {
+        const parsed = JSON.parse(errBody) as { meta?: { contactId?: string } };
+        duplicateId = parsed.meta?.contactId;
+      } catch {
+        // not JSON; fall through to error
+      }
+
+      if (!duplicateId) {
+        console.error("GHL contact creation failed:", contactRes.status, errBody);
+        return { ok: false, status: contactRes.status, error: errBody.slice(0, 300) };
+      }
+      contactId = duplicateId;
+    }
 
     let noteStatus: number | undefined;
     if (contactId) {
@@ -113,12 +139,9 @@ async function sendToGhl(fields: Fields): Promise<GhlResult> {
         fields.message
       ].join("\n");
 
-      const noteRes = await fetch(`https://rest.gohighlevel.com/v1/contacts/${contactId}/notes/`, {
+      const noteRes = await fetch(`${GHL_API_BASE}/contacts/${contactId}/notes`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${ghlApiKey}`,
-          "Content-Type": "application/json"
-        },
+        headers,
         body: JSON.stringify({ body: noteBody })
       });
 
